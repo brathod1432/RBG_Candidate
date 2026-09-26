@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Application - Edge Cases</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    .form-group { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+    input, textarea { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; }
+    input:focus, textarea:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 2px rgba(0,123,255,0.25); }
+    .required::after { content: " *"; color: #dc3545; }
+    h1 { color: #333; }
+    h2 { color: #555; margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem; }
+    .note { background: #fff3cd; border: 1px solid #ffc107; padding: 1rem; border-radius: 4px; margin: 1rem 0; }
+    .note.warning { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+    .note.info { background: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+    code { background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: monospace; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <!-- No data-stage attribute - will fall back to URL or heading or default -->
+  <h1>Edge Cases Test Page</h1>
+  <p>This page tests various edge cases for field detection and stage detection.</p>
+
+  <div class="note info">
+    <strong>Note:</strong> This page has no <code>data-stage</code> attribute. Stage detection will fall back to:
+    <ol>
+      <li>URL parameter (e.g., <code>?stage=3</code> or <code>/apply/step-3</code>)</li>
+      <li>Heading text matching "stage|step|page|part N"</li>
+      <li>Default to stage "1" with low confidence</li>
+    </ol>
+  </div>
+
+  <form id="edge-cases-form" action="/apply/edge" method="POST">
+
+    <h2>1. Iframe & Shadow DOM Notes</h2>
+    <div class="note warning">
+      <strong>Iframe Note:</strong> Content scripts cannot access form fields inside cross-origin iframes due to Same-Origin Policy.
+      If the application form is embedded in an iframe from a different domain, the content script will not detect those fields.
+      <br><br>
+      <strong>Shadow DOM Note:</strong> Fields inside closed Shadow DOM are not accessible via <code>document.querySelectorAll</code>.
+      Open Shadow DOM can be pierced with <code>element.shadowRoot.querySelectorAll</code>, but this requires explicit handling.
+      The current <code>scanFields</code> implementation only scans the main document's light DOM.
+    </div>
+
+    <h2>2. Aria-only Labels (No Visible Label)</h2>
+    <p>These fields have no visible <code><label></code> but use <code>aria-label</code> or <code>aria-labelledby</code> for accessibility.</p>
+
+    <div class="form-group">
+      <!-- Email detected via aria-label only -->
+      <input
+        type="email"
+        id="ariaEmail"
+        name="ariaEmail"
+        placeholder="Email"
+        autocomplete="email"
+        aria-label="Email address"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <!-- Phone detected via aria-labelledby referencing a hidden element -->
+      <span id="phoneLabel" class="hidden">Phone Number</span>
+      <input
+        type="tel"
+        id="ariaPhone"
+        name="ariaPhone"
+        placeholder="Phone"
+        autocomplete="tel"
+        aria-labelledby="phoneLabel"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <!-- Full name detected via aria-label with "Full name" text -->
+      <input
+        type="text"
+        id="ariaName"
+        name="ariaName"
+        placeholder="Your name"
+        autocomplete="name"
+        aria-label="Full name"
+        required
+      >
+    </div>
+
+    <h2>3. Hidden Fields (Should Be Skipped)</h2>
+    <p>These fields should be skipped by <code>scanFields</code> due to type="hidden" or CSS display:none.</p>
+
+    <!-- Hidden via type="hidden" -->
+    <input type="hidden" name="csrf_token" value="xyz789">
+
+    <!-- Hidden via CSS display:none -->
+    <div class="form-group hidden" id="hiddenFieldContainer">
+      <label for="hiddenByCss">Hidden by CSS</label>
+      <input
+        type="text"
+        id="hiddenByCss"
+        name="hiddenByCss"
+        placeholder="This should be skipped"
+      >
+    </div>
+
+    <!-- Hidden via hidden attribute -->
+    <div class="form-group">
+      <label for="hiddenAttr">Hidden attribute</label>
+      <input
+        type="text"
+        id="hiddenAttr"
+        name="hiddenAttr"
+        placeholder="Also hidden"
+        hidden
+      >
+    </div>
+
+    <!-- Disabled field - should be skipped -->
+    <div class="form-group">
+      <label for="disabledField">Disabled Field</label>
+      <input
+        type="text"
+        id="disabledField"
+        name="disabledField"
+        placeholder="Disabled input"
+        disabled
+      >
+    </div>
+
+    <h2>4. Password Fields (Should Be Excluded)</h2>
+    <p>Password fields are in <code>SKIPPED_INPUT_TYPES</code> and should be excluded.</p>
+
+    <div class="form-group">
+      <label for="pwd1" class="required">Password</label>
+      <input
+        type="password"
+        id="pwd1"
+        name="password"
+        placeholder="Create password"
+        autocomplete="new-password"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="pwd2" class="required">Confirm Password</label>
+      <input
+        type="password"
+        id="pwd2"
+        name="confirmPassword"
+        placeholder="Confirm password"
+        autocomplete="new-password"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <!-- Current password field - also excluded -->
+      <label for="currentPwd">Current Password</label>
+      <input
+        type="password"
+        id="currentPwd"
+        name="currentPassword"
+        placeholder="Current password"
+        autocomplete="current-password"
+      >
+    </div>
+
+    <h2>5. Fields with Excluded Substrings (Should Be Skipped)</h2>
+    <p>Fields whose label/name/id/placeholder contain excluded substrings (company, city, state, zip, postal, country, password, username) are skipped.</p>
+
+    <div class="form-group">
+      <label for="companyName" class="required">Company Name</label>
+      <input
+        type="text"
+        id="companyName"
+        name="companyName"
+        placeholder="Your company"
+        autocomplete="off"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="cityInput" class="required">City</label>
+      <input
+        type="text"
+        id="cityInput"
+        name="cityInput"
+        placeholder="City"
+        autocomplete="address-level2"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="stateInput" class="required">State / Province</label>
+      <input
+        type="text"
+        id="stateInput"
+        name="stateInput"
+        placeholder="State"
+        autocomplete="address-level1"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="zipInput" class="required">ZIP / Postal Code</label>
+      <input
+        type="text"
+        id="zipInput"
+        name="zipInput"
+        placeholder="ZIP code"
+        autocomplete="postal-code"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="countryInput" class="required">Country</label>
+      <select id="countryInput" name="countryInput" required>
+        <option value="">Select...</option>
+        <option value="US">United States</option>
+        <option value="CA">Canada</option>
+        <option value="UK">United Kingdom</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="usernameInput" class="required">Username</label>
+      <input
+        type="text"
+        id="usernameInput"
+        name="usernameInput"
+        placeholder="Username"
+        autocomplete="username"
+        required
+      >
+    </div>
+
+    <h2>6. Other Excluded Input Types</h2>
+    <p>These input types are in <code>SKIPPED_INPUT_TYPES</code> and should be excluded.</p>
+
+    <div class="form-group">
+      <label>Checkbox (excluded)</label>
+      <input type="checkbox" id="agree" name="agree" value="1"> I agree
+    </div>
+
+    <div class="form-group">
+      <label>Radio (excluded)</label>
+      <input type="radio" id="opt1" name="option" value="1"> Option 1
+      <input type="radio" id="opt2" name="option" value="2"> Option 2
+    </div>
+
+    <div class="form-group">
+      <label for="fileUpload">File Upload (excluded)</label>
+      <input type="file" id="fileUpload" name="resume">
+    </div>
+
+    <div class="form-group">
+      <label for="dateInput">Date (excluded)</label>
+      <input type="date" id="dateInput" name="startDate">
+    </div>
+
+    <div class="form-group">
+      <label for="colorInput">Color (excluded)</label>
+      <input type="color" id="colorInput" name="favoriteColor">
+    </div>
+
+    <div class="form-group">
+      <label for="rangeInput">Range (excluded)</label>
+      <input type="range" id="rangeInput" name="salaryRange" min="0" max="200000">
+    </div>
+
+    <div class="form-group">
+      <label for="submitBtn">Submit Button (excluded)</label>
+      <input type="submit" id="submitBtn" value="Submit">
+    </div>
+
+    <h2>7. Valid Fields That Should Be Detected</h2>
+    <p>These fields use various label/aria/name patterns and should be correctly classified.</p>
+
+    <div class="form-group">
+      <!-- Explicit label with for= -->
+      <label for="validEmail" class="required">E-mail Address</label>
+      <input
+        type="email"
+        id="validEmail"
+        name="validEmail"
+        placeholder="work@example.com"
+        autocomplete="email"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <!-- Wrapping label -->
+      <label>
+        Mobile Phone
+        <input
+          type="tel"
+          id="validMobile"
+          name="validMobile"
+          placeholder="+1 (555) 000-0000"
+          autocomplete="tel"
+        >
+      </label>
+    </div>
+
+    <div class="form-group">
+      <!-- Placeholder only (no label, no aria) - should still be detected via placeholder -->
+      <input
+        type="text"
+        id="placeholderOnly"
+        name="placeholderOnly"
+        placeholder="Full Name"
+        autocomplete="name"
+      >
+    </div>
+
+    <div class="form-group">
+      <!-- Name attribute only -->
+      <input
+        type="text"
+        name="applicantName"
+        placeholder="Name"
+        autocomplete="name"
+      >
+    </div>
+
+    <div class="form-group">
+      <!-- Summary via textarea with name containing "summary" -->
+      <textarea
+        id="validSummary"
+        name="validSummary"
+        rows="4"
+        placeholder="Professional summary..."
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <!-- Headline via placeholder with "headline" -->
+      <input
+        type="text"
+        id="placeholderHeadline"
+        name="placeholderHeadline"
+        placeholder="Professional Headline"
+        autocomplete="off"
+      >
+    </div>
+
+    <button type="submit">Submit Edge Cases</button>
+  </form>
+
+  <script>
+    console.log('Edge cases page loaded');
+    console.log('data-stage attribute:', document.querySelector('[data-stage]')?.getAttribute('data-stage') ?? 'none');
+    console.log('URL:', window.location.href);
+    console.log('Headings:', Array.from(document.querySelectorAll('h1, h2, h3, legend')).map(h => h.textContent.trim()));
+  </script>
+</body>
+</html>

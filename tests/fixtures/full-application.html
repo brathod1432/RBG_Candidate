@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Apply — Staff Python Engineer — Northwind AI</title>
+  <meta property="og:site_name" content="Northwind AI">
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; color: #1f2937; }
+    h1 { font-size: 24px; margin-bottom: 4px; } .muted { color: #6b7280; margin-top: 0; }
+    fieldset { border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 18px; margin: 18px 0; }
+    legend { font-weight: 600; padding: 0 6px; }
+    .f { display: grid; grid-template-columns: 220px 1fr; gap: 10px; align-items: center; margin: 10px 0; }
+    input, select, textarea { font: inherit; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; box-sizing: border-box; }
+    textarea { min-height: 90px; }
+    button { font: inherit; padding: 10px 18px; border-radius: 8px; border: 0; background: #111827; color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>Staff Python Engineer</h1>
+  <p class="muted">Northwind AI · Remote (EU)</p>
+  <div class="job-description">
+    Northwind AI builds LLM-powered developer tools. As a Staff Python Engineer you will design async services,
+    evaluation pipelines and APIs used by thousands of teams, build React front ends, and mentor engineers across the platform group.
+  </div>
+  <form id="apply" onsubmit="window.__submitted = true; return false;">
+    <fieldset><legend>About you</legend>
+      <div class="f"><label for="first">First name</label><input id="first" name="first_name" required></div>
+      <div class="f"><label for="middle">Middle name</label><input id="middle" name="middle_name"></div>
+      <div class="f"><label for="last">Last name</label><input id="last" name="last_name" required></div>
+      <div class="f"><label for="em">Email address</label><input id="em" type="email" name="email" required></div>
+      <div class="f"><label for="ph">Phone number</label><input id="ph" type="tel" name="phone"></div>
+      <div class="f"><label for="city">City</label><input id="city" name="city"></div>
+      <div class="f"><label for="li">LinkedIn profile URL</label><input id="li" type="url" name="linkedin"></div>
+      <div class="f"><label for="gh">GitHub</label><input id="gh" type="url" name="github"></div>
+    </fieldset>
+    <fieldset><legend>Experience</legend>
+      <div class="f"><label for="yrs">Years of experience</label><input id="yrs" type="number" name="years"></div>
+      <div class="f"><label for="cur">Current job title</label><input id="cur" name="current_title"></div>
+      <div class="f"><label for="notice">Notice period</label><input id="notice" name="notice"></div>
+      <div class="f"><label for="spons">Will you require visa sponsorship?</label>
+        <select id="spons" name="sponsorship"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
+      <div class="f"><label for="sk1">Skill 1</label><input id="sk1" name="skill_1"></div>
+      <div class="f"><label for="sk2">Skill 2</label><input id="sk2" name="skill_2"></div>
+      <div class="f"><label for="keys">Key skills</label><input id="keys" name="key_skills" maxlength="20"></div>
+      <div class="f"><label for="why">Why Northwind AI?</label><textarea id="why" name="why" maxlength="800"></textarea></div>
+    </fieldset>
+    <button type="submit">Submit application</button>
+  </form>
+</body>
+</html>

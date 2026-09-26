@@ -1,0 +1,82 @@
+# Proposed replacement for .github/workflows/ci.yml (copy it over manually).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  server:
+    name: Server (ruff / pyright / pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: server/requirements-dev.txt
+      - run: pip install -r server/requirements-dev.txt
+      - run: ruff check server scripts
+      - run: pyright server
+      - run: pytest tests -q
+
+  client:
+    name: Client (tsc / vitest / build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-dist
+          path: client/dist/
+          retention-days: 14
+
+  e2e:
+    name: E2E (Chromium + extension + worker pool vs fake NVIDIA)
+    runs-on: ubuntu-latest
+    needs: [server, client]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: pip install -r server/requirements.txt
+      - name: Build extension
+        run: cd client && npm ci && npm run build
+      - name: Install Playwright
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Start fake NVIDIA, API server and fixtures
+        run: |
+          python scripts/fake_nvidia_server.py --port 9100 &
+          NVIDIA_BASE_URL=http://127.0.0.1:9100/v1 NVIDIA_API_KEY=ci-fake-key \
+            python -m uvicorn server.main:app --port 8000 &
+          python -m http.server 34567 --directory tests/fixtures &
+          for i in $(seq 1 30); do curl -sf localhost:8000/health && break; sleep 1; done
+      - name: Run E2E
+        run: cd e2e && xvfb-run -a npx playwright test ai-pool.spec.ts --project chromium --reporter=list
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            test-results/
+            e2e/test-results/
+          retention-days: 14

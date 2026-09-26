@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Application - Stage 2: Experience</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
+    .form-group { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+    input, textarea, select { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; font-family: inherit; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 2px rgba(0,123,255,0.25); }
+    .required::after { content: " *"; color: #dc3545; }
+    h1 { color: #333; }
+    h2 { color: #555; margin-top: 2rem; }
+    .stage-indicator { background: #e7f3ff; border: 1px solid #b3d7ff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1.5rem; }
+    .help-text { font-size: 0.875rem; color: #666; margin-top: 0.25rem; }
+    .inline-labels { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .inline-labels .form-group { flex: 1; min-width: 200px; }
+  </style>
+</head>
+<body>
+  <!-- Stage detection via URL parameter (fallback when no data-stage) -->
+  <div data-stage="2" class="stage-indicator">
+    <strong>Step 2 of 3: Experience & Background</strong>
+  </div>
+
+  <h1>Professional Experience</h1>
+  <p>Tell us about your professional background and what you're looking for.</p>
+
+  <form id="experience-form" action="/apply/stage2" method="POST">
+
+    <!-- Headline / Desired Job Title - detected via label text "Desired Job Title" -->
+    <div class="form-group">
+      <label for="desiredTitle" class="required">Desired Job Title</label>
+      <input
+        type="text"
+        id="desiredTitle"
+        name="desiredTitle"
+        placeholder="e.g., Senior Software Engineer"
+        autocomplete="off"
+        required
+      >
+      <p class="help-text">The title of the role you're applying for</p>
+    </div>
+
+    <!-- Alternative headline field - detected via aria-label only (no visible label) -->
+    <div class="form-group">
+      <input
+        type="text"
+        id="headlineAria"
+        name="headlineAria"
+        placeholder="Current or desired title"
+        autocomplete="off"
+        aria-label="Current job title or desired position"
+      >
+    </div>
+
+    <!-- Headline via wrapping label -->
+    <div class="form-group">
+      <label>
+        Job Title / Headline
+        <input
+          type="text"
+          id="wrappingHeadline"
+          name="wrappingHeadline"
+          placeholder="Software Engineer"
+          autocomplete="off"
+        >
+      </label>
+    </div>
+
+    <!-- Current position - should be detected as headline (contains "position") -->
+    <div class="form-group">
+      <label for="currentPosition" class="required">Current Position</label>
+      <input
+        type="text"
+        id="currentPosition"
+        name="currentPosition"
+        placeholder="Your current role"
+        autocomplete="off"
+      >
+    </div>
+
+    <!-- Summary / Cover Letter - detected via textarea with name="summary" -->
+    <div class="form-group">
+      <label for="summary" class="required">Professional Summary</label>
+      <textarea
+        id="summary"
+        name="summary"
+        rows="5"
+        placeholder="Briefly describe your experience, skills, and what you bring to this role..."
+        required
+      ></textarea>
+      <p class="help-text">2-3 paragraphs highlighting your relevant experience</p>
+    </div>
+
+    <!-- Cover letter - should be classified as summary but skipped due to duplicate key -->
+    <div class="form-group">
+      <label for="coverLetter">Cover Letter (Optional)</label>
+      <textarea
+        id="coverLetter"
+        name="coverLetter"
+        rows="4"
+        placeholder="Why are you interested in this position?"
+      ></textarea>
+    </div>
+
+    <!-- About you - detected via label text "About You" -->
+    <div class="form-group">
+      <label for="aboutYou">About Yourself</label>
+      <textarea
+        id="aboutYou"
+        name="aboutYou"
+        rows="3"
+        placeholder="Tell us a bit about yourself..."
+      ></textarea>
+    </div>
+
+    <!-- Experience level select - should be skipped (select not in allowed types for classification) -->
+    <div class="form-group">
+      <label for="experienceLevel" class="required">Years of Experience</label>
+      <select id="experienceLevel" name="experienceLevel" required>
+        <option value="">Select...</option>
+        <option value="0-1">0-1 years</option>
+        <option value="2-4">2-4 years</option>
+        <option value="5-7">5-7 years</option>
+        <option value="8-10">8-10 years</option>
+        <option value="10+">10+ years</option>
+      </select>
+    </div>
+
+    <!-- Objective - detected via label text "Objective" -->
+    <div class="form-group">
+      <label for="objective">Career Objective</label>
+      <textarea
+        id="objective"
+        name="objective"
+        rows="3"
+        placeholder="What are you looking for in your next role?"
+      ></textarea>
+    </div>
+
+    <!-- Description - detected via label text "Description" -->
+    <div class="form-group">
+      <label for="description">Role Description</label>
+      <textarea
+        id="description"
+        name="description"
+        rows="3"
+        placeholder="Describe your most recent role..."
+      ></textarea>
+    </div>
+
+    <!-- Hidden field - should be skipped -->
+    <input type="hidden" name="application_id" value="app_456">
+
+    <!-- Password field - should be excluded -->
+    <div class="form-group">
+      <label for="confirmPassword" class="required">Confirm Password</label>
+      <input
+        type="password"
+        id="confirmPassword"
+        name="confirmPassword"
+        placeholder="Re-enter password"
+        autocomplete="new-password"
+        required
+      >
+    </div>
+
+    <button type="submit">Continue to Review</button>
+  </form>
+
+  <script>
+    console.log('Stage 2 Experience page loaded');
+    console.log('data-stage attribute:', document.querySelector('[data-stage]')?.getAttribute('data-stage'));
+    console.log('URL:', window.location.href);
+  </script>
+</body>
+</html>

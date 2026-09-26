@@ -1,0 +1,45 @@
+# RBG_Candidate .gitignore
+# rbg-fable-5.1 internal memory — never commit
+.opencode/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.pyright/
+
+# Node / extension
+node_modules/
+client/dist/
+client/build/
+*.log
+
+# Env + secrets — NEVER commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS / IDE (keep .idea/ out unless team shares it)
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+
+# Playwright + test artefacts
+test-results/
+playwright-report/
+*.har
+
+# Store package artefact (built on demand)
+*.zip
+
+# Personal candidate profiles (real names, phone numbers) - never commit
+profiles/
+
+# Project exclude paths
+/.superdesign/

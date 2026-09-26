@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Senior Python Engineer — Acme Robotics</title>
+  <meta property="og:site_name" content="Acme Robotics">
+</head>
+<body>
+  <!-- Emulates a React-controlled form: an instance-level value tracker makes
+       plain `el.value = x` invisible to the app's input handler, exactly like
+       React's inputValueTracking. Only the native prototype setter works. -->
+  <h1>Senior Python Engineer</h1>
+  <div class="job-description">
+    Acme Robotics is hiring a Senior Python Engineer to build asynchronous services for our fleet
+    of warehouse robots. You will own APIs, data pipelines and reliability.
+  </div>
+  <form id="app-form" onsubmit="window.__submitted = true; return false;">
+    <div class="field"><label for="firstName">First Name</label><input id="firstName" name="firstName" type="text"></div>
+    <div class="field"><label for="lastName">Last Name</label><input id="lastName" name="lastName" type="text"></div>
+    <div class="field"><label for="email">Email</label><input id="email" name="email" type="email"></div>
+    <div class="field"><span>How many years of Python experience do you have?</span><input name="pyYears" type="number"></div>
+    <div class="field"><label for="why">Why do you want to work at Acme Robotics?</label><textarea id="why" name="why" maxlength="600"></textarea></div>
+    <div class="field"><label for="relocate">Willing to relocate?</label>
+      <select id="relocate" name="relocate"><option value="">Choose…</option><option value="y">Yes</option><option value="n">No</option></select></div>
+    <button type="submit">Submit application</button>
+  </form>
+  <pre id="state">{}</pre>
+  <script>
+    const state = {};
+    function track(el) {
+      const proto = Object.getPrototypeOf(el);
+      const desc = Object.getOwnPropertyDescriptor(proto, "value");
+      let tracked = desc.get.call(el);
+      Object.defineProperty(el, "value", {
+        configurable: true,
+        get() { return desc.get.call(this); },
+        set(v) { tracked = String(v); desc.set.call(this, v); },
+      });
+      const onChange = () => {
+        const current = desc.get.call(el);
+        if (current === tracked) return;   // React ignores events when tracker already matches
+        tracked = current;
+        state[el.name] = current;
+        document.getElementById("state").textContent = JSON.stringify(state);
+      };
+      el.addEventListener("input", onChange);
+      el.addEventListener("change", onChange);
+    }
+    document.querySelectorAll("input, textarea, select").forEach(track);
+  </script>
+</body>
+</html>

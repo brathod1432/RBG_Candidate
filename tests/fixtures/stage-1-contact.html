@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Application - Stage 1: Contact Information</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    .form-group { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+    input, textarea { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; }
+    input:focus, textarea:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 2px rgba(0,123,255,0.25); }
+    .required::after { content: " *"; color: #dc3545; }
+    h1 { color: #333; }
+    .stage-indicator { background: #e7f3ff; border: 1px solid #b3d7ff; padding: 0.75rem; border-radius: 4px; margin-bottom: 1.5rem; }
+  </style>
+</head>
+<body>
+  <!-- Stage detection via data-stage attribute (highest priority) -->
+  <div data-stage="1" class="stage-indicator">
+    <strong>Step 1 of 3: Contact Information</strong>
+  </div>
+
+  <h1>Contact Information</h1>
+  <p>Please provide your contact details so we can reach you about this application.</p>
+
+  <form id="contact-form" action="/apply/stage1" method="POST">
+
+    <!-- Full Name - detected via explicit label with for="fullName" -->
+    <div class="form-group">
+      <label for="fullName" class="required">Full Name</label>
+      <input
+        type="text"
+        id="fullName"
+        name="fullName"
+        placeholder="John Doe"
+        autocomplete="name"
+        required
+      >
+    </div>
+
+    <!-- Email - detected via input type="email" and placeholder -->
+    <div class="form-group">
+      <label for="email" class="required">Email Address</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="you@example.com"
+        autocomplete="email"
+        required
+      >
+    </div>
+
+    <!-- Phone - detected via explicit label with for="phone" and tel type -->
+    <div class="form-group">
+      <label for="phone" class="required">Phone Number</label>
+      <input
+        type="tel"
+        id="phone"
+        name="phone"
+        placeholder="(555) 123-4567"
+        autocomplete="tel"
+        required
+      >
+    </div>
+
+    <!-- Alternative phone field - detected via aria-label (no visible label) -->
+    <div class="form-group">
+      <input
+        type="tel"
+        id="mobile"
+        name="mobile"
+        placeholder="Mobile number (optional)"
+        autocomplete="tel"
+        aria-label="Mobile phone number"
+      >
+    </div>
+
+    <!-- Email confirmation - should be classified as email but skipped due to duplicate key -->
+    <div class="form-group">
+      <label for="emailConfirm" class="required">Confirm Email Address</label>
+      <input
+        type="email"
+        id="emailConfirm"
+        name="emailConfirm"
+        placeholder="you@example.com"
+        autocomplete="email"
+        required
+      >
+    </div>
+
+    <!-- Full name split into first/last - first name should be detected as fullName, last name skipped -->
+    <div class="form-group">
+      <label for="firstName" class="required">First Name</label>
+      <input
+        type="text"
+        id="firstName"
+        name="firstName"
+        placeholder="John"
+        autocomplete="given-name"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="lastName" class="required">Last Name</label>
+      <input
+        type="text"
+        id="lastName"
+        name="lastName"
+        placeholder="Doe"
+        autocomplete="family-name"
+        required
+      >
+    </div>
+
+    <!-- Hidden field - should be skipped by scanFields -->
+    <input type="hidden" name="csrf_token" value="abc123">
+
+    <!-- Password field - should be excluded by SKIPPED_INPUT_TYPES -->
+    <div class="form-group">
+      <label for="password" class="required">Create Password</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="At least 8 characters"
+        autocomplete="new-password"
+        required
+      >
+    </div>
+
+    <button type="submit">Continue to Experience</button>
+  </form>
+
+  <script>
+    // This script simulates what the content script would do
+    // It's here for manual testing verification only
+    console.log('Stage detection test page loaded');
+    console.log('data-stage attribute:', document.querySelector('[data-stage]')?.getAttribute('data-stage'));
+    console.log('URL:', window.location.href);
+  </script>
+</body>
+</html>
