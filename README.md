@@ -120,6 +120,15 @@ then drop it on *Import profile from Markdown*.
 - **Office frequency.** "How often would you be able to work from the office?" answers from your Work mode's detail ("hybrid (2-3 days from the office)" → "2-3 days from the office") — matched against the drop-down when there is one.
 - **Work permit / visa.** "Would you require a work permit to work in X?" answers "No" by default — set "Requires visa sponsorship" in your profile if you do need support.
 - **Typeahead pickers.** For fields where you type and a list appears (skills, company name, university), the typing agents click the matching option from that list after typing — typing alone is not a selection. Works for any pickable field.
+- **Work authorization default.** "Are you authorized to work in X?" / "Do you have the right to work in X?" answers "Yes" by default (an open work permit is assumed) — set "Work authorization" in your profile to override. An open status question ("What is your work authorization status?") gets a full sentence: authorized to work with an open work permit, no sponsorship required.
+- **Relocation default.** "Are you willing to relocate to [city]?" answers "Yes" when the city is your own or anywhere in Poland, and "No" when it is outside Poland. A plain "willing to relocate?" answers "Yes". Open text fields keep your profile's own relocation line.
+- **Salary expectation default.** Text fields get a one-sentence reply — you'd prefer to discuss a reasonable range after learning the role and responsibilities during the interview. Number-only inputs (type="number" or "numbers only") are skipped rather than guessed. Your profile's Desired salary always wins when set.
+- **Availability default.** "Available from" / "When can you start?" gets the next 1st or 15th of the month (YYYY-MM-DD): before the 15th → the 15th of this month; from the 15th → the 1st of next month. Selects pick an "Immediate"-style option first.
+- **English level default.** With no profile language, English level fields default to C2 — matched to the form's options via a CEFR ladder ("Native" first, then C2/full-professional, then fluent), so A2 finds "Limited working proficiency", not "Basic".
+- **Profile completeness.** The Settings tab shows the share of critical profile fields filled (name, contact, work auth, visa, relocation, work mode, notice, availability, salary) with the missing list — click it to fill them in yourself. Defaults cover the gaps at fill time.
+- **Fill summary banner.** After an instant fill, a small banner in the page lists what was filled and points to the Review tab where defaults (applied where your profile was empty) can be changed before submitting.
+- **Encrypted history vault.** Every answered field is appended to `%APPDATA%\RBG_Candidate\history` (DPAPI-encrypted, monthly shards, 60-day TTL) — your own encrypted record of what was filled where. Nothing is stored on the server.
+- **Adaptive typing agents.** The typing agents scale with the form: 1-2 fields → 1 cursor, 3-5 → 2, 6-15 → 3, 16-30 → 4, longer → 5. An explicit agent count in the popup always wins; 5 is the hard max.
 - Anything the defaults can't answer still goes to the AI workers: it picks the best option from a drop-down, or writes the answer for text fields.
 - Personal profiles go in `profiles/` (gitignored).
 
@@ -127,7 +136,8 @@ then drop it on *Import profile from Markdown*.
 
 After you confirm values in Review, a crew of named, coloured cursors types them into the page:
 **Nova** (violet), **Echo** (cyan), **Blaze** (orange), **Sage** (green), **Ruby** (red), **Atlas** (amber).
-Default 3, up to 6 — Settings → *Typing agents* (count, speed, on/off).
+The crew size adapts to the form: 1-2 fields → 1 cursor, 3-5 → 2, 6-15 → 3, 16-30 → 4, longer → 5.
+Your explicit count in Settings → *Typing agents* wins when you change it; 5 is the hard max (speed, on/off also there).
 
 - Each agent independently pulls the next field from a shared queue, glides to it, clicks, and types
   letter by letter (long answers type several characters per tick, capped at a few seconds per field).
@@ -143,6 +153,7 @@ Default 3, up to 6 — Settings → *Typing agents* (count, speed, on/off).
 
 - **Local-only storage** — Everything stays in `chrome.storage.local` on this device. An NVIDIA key you save in the extension is optional (the server's `.env` key is used otherwise). It is encrypted with AES-GCM using a random, non-extractable device key the extension keeps in its own IndexedDB, with no passphrase. That keeps it out of the storage files as plain text, but anyone in full control of your Windows account could still recover it. Profile fields are stored unencrypted.
 - **Transient API calls** — Server is stateless: no database, no PII logs, in-memory rate limiting only. Request/response payloads discarded after processing.
+- **History vault** — Filled values are appended to `%APPDATA%\RBG_Candidate\history` as DPAPI-encrypted monthly shards (60-day TTL), on this device only. The server stores nothing; shards are never sent anywhere.
 - **What leaves the device** — for fields the profile can't answer directly, the field label/options, your profile text and the job title/description are sent to NVIDIA to draft an answer. Fields answered from the profile never reach a model.
 - **No tracking** — No analytics, telemetry, or third-party scripts. Network calls only to your FastAPI instance and `integrate.api.nvidia.com`.
 - **No auto-submit** — Every fill requires explicit confirmation in the preview modal.
@@ -152,6 +163,18 @@ Default 3, up to 6 — Settings → *Typing agents* (count, speed, on/off).
 ## Disclaimer
 
 > **RBG Candidate automates form filling but does not provide legal advice. Ensure compliance with job site terms.**
+
+## Version control
+
+The repo is Git-ready: `.gitignore` excludes `profiles/` (personal candidate data), `.env` and
+secrets, `.opencode/` (agent memory), `client/dist`, virtualenvs, `node_modules` and test artefacts.
+Git itself is not installed on this machine yet — after installing it, run from the project root:
+
+```bat
+git init
+git add -A
+git commit -m "Initial commit"
+```
 
 ---
 

@@ -707,6 +707,15 @@ export function localSuggestions(
           }
           value = parts.join(" ");
         }
+      } else if (d.type === "select" || d.options.length > 0) {
+        // Hard default: the hybrid preference (2-3 days from the office) even
+        // with no profile — whichever option suits it best.
+        const matched = d.options.find((o) => /2\s*-\s*3|2\s*to\s*3/i.test(o))
+          ?? d.options.find((o) => o.toLowerCase().includes("hybrid"));
+        if (matched !== undefined) value = matched;
+      } else if (d.type === "text" || d.type === "search" || d.type === "textarea") {
+        value = "2-3 days from the office";
+        if (d.maxLength !== undefined && d.maxLength < value.length) value = value.slice(0, d.maxLength);
       }
     } else if (/how often|how many days|days (per week|from|in)|frequency/i.test(text) && /\boffice\b|\bremote\b|\bhybrid\b|\bweek\b/i.test(text)) {
       // "How often ... from the office?" — the frequency from the stored work mode
@@ -762,7 +771,7 @@ export function localSuggestions(
       // Work-permit / visa questions: No — the candidate does not require support
       // (unless the profile explicitly says otherwise).
       const own = (personal["visa_sponsorship"] ?? "").trim().toLowerCase();
-      const requires = own !== "" && /\b(yes|true|require[d]?|need(?:ed)?|sponsor(?:ed)?)\b/.test(own);
+      const requires = own !== "" && /\b(yes|true|require[ds]?|need(?:ed)?|sponsor[ds]?)\b/.test(own);
       if (d.type === "select" || d.options.length > 0) {
         if (d.options.some((o) => ["yes", "no", "y", "n", "true", "false"].includes(o.toLowerCase()))) {
           const want = requires ? "yes" : "no";
@@ -771,6 +780,101 @@ export function localSuggestions(
         }
       } else if (d.type === "text" || d.type === "search") {
         value = requires ? "Yes" : "No";
+      }
+    } else if (/work authori[sz]ation|authori[sz]ed to work|legally authori[sz]ed|right to work|eligible to work|work eligibility|permitted to work/i.test(text)) {
+      // Work-authorization questions: Yes — the candidate is authorized to work
+      // (open work permit assumed, no sponsorship needed) unless the profile
+      // says otherwise. An open status question gets the status sentence.
+      const own = (personal["work_authorization"] ?? "").trim();
+      if (own !== "") {
+        if (d.type === "select" || d.options.length > 0) {
+          const n = own.toLowerCase();
+          const matched = d.options.find((o) => o.toLowerCase() === n)
+            ?? d.options.find((o) => {
+              const on = o.toLowerCase();
+              return on !== "" && (on.includes(n) || n.includes(on));
+            });
+          if (matched !== undefined) value = matched;
+        } else if (d.type === "text" || d.type === "search") {
+          value = own;
+        }
+      } else if (d.type === "select" || d.options.length > 0) {
+        if (d.options.some((o) => ["yes", "no", "y", "n", "true", "false"].includes(o.toLowerCase()))) {
+          const matched = d.options.find((o) => o.toLowerCase() === "yes");
+          if (matched !== undefined) value = matched;
+        }
+      } else if (d.type === "text" || d.type === "search") {
+        const yesno = /^(are|do|can|would|could) you\b/i.test((d.label ?? d.placeholder ?? d.id).trim());
+        const sentence = "Authorized to work with an open work permit; no visa sponsorship required";
+        value = yesno ? "Yes" : (d.maxLength !== undefined && d.maxLength < sentence.length ? sentence.slice(0, d.maxLength) : sentence);
+      }
+    } else if (/willing to (relocate|move)|\brelocat/i.test(text)) {
+      // "Willing to relocate to [X]?" — Yes when X is the candidate's city or
+      // anywhere in Poland; No when X is outside Poland; a plain question -> Yes.
+      // One answer, never more. Open text falls through to the profile's line.
+      const isSelectYesNo = (d.type === "select" || d.options.length > 0)
+        && d.options.some((o) => ["yes", "no", "y", "n", "true", "false"].includes(o.toLowerCase()));
+      const isYesNoQuestion = /^(are|do|would|could|can) you\b/i.test((d.label ?? d.placeholder ?? d.id).trim());
+      if (isSelectYesNo || isYesNoQuestion) {
+        const m = /(?:relocat\w*|moving|move)\s+(?:to|in|at)\s+((?:our |the |a |an )?[a-z][a-z\s\-]{1,40}?)[\?.,;!]/i.exec(text);
+        let dest = m !== null ? m[1].trim() : "";
+        dest = dest.replace(/^(our|the|a|an)\s+/i, "").trim().toLowerCase();
+        const polishCities = [
+          "warsaw", "warszawa", "krakow", "kraków", "wroclaw", "wrocław", "gdansk", "gdańsk",
+          "gdynia", "poznan", "poznań", "lodz", "łódź", "katowice", "lublin", "szczecin",
+          "bydgoszcz", "bialystok", "białystok", "rzeszow", "rzeszów", "torun", "toruń",
+          "kielce", "olsztyn", "zabrze", "gliwice", "bielsko-biala", "radom", "rybnik",
+          "tychy", "opole", "elblag", "elbląg", "plock", "płock", "walbrzych", "wałbrzych",
+          "legnica", "kalisz", "koszalin",
+        ];
+        const answer = dest === "" || /\b(different|another|other|any|elsewhere|anywhere)\b/i.test(dest)
+          ? "Yes"
+          : polishCities.some((c) => dest.includes(c))
+            ? "Yes"
+            : "No";
+        if (d.type === "select" || d.options.length > 0) {
+          const matched = d.options.find((o) => o.toLowerCase() === answer.toLowerCase());
+          if (matched !== undefined) value = matched;
+        } else if (d.type === "text" || d.type === "search") {
+          value = answer;
+        }
+      }
+    } else if (/available from|availability|earliest start|start date|when can you start/i.test(text)) {
+      // Availability: the profile's date when set; the hard default is the next
+      // 1st/15th window (YYYY-MM-DD) — the soonest "immediate" start: before
+      // the 15th -> the 15th of this month; from the 15th -> the 1st of next month.
+      const own = (personal["available_from"] ?? "").trim();
+      if (own !== "") {
+        value = own;
+      } else {
+        const now = new Date();
+        const target = now.getDate() < 15
+          ? new Date(now.getFullYear(), now.getMonth(), 15)
+          : new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const iso = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
+        if (d.type === "select" || d.options.length > 0) {
+          const immediate = d.options.find((o) => /immediat/i.test(o));
+          if (immediate !== undefined) {
+            value = immediate;
+          } else {
+            const matched = d.options.find((o) => norm(o) === iso || norm(o).includes(iso));
+            if (matched !== undefined) value = matched;
+          }
+        } else if (d.type === "text" || d.type === "search") {
+          value = iso;
+        }
+      }
+    } else if (/salary|compensation|pay expectation|pay range/i.test(text)) {
+      // Salary: the profile's figure when set; otherwise the one-sentence
+      // conversational default for string fields. Number-only inputs
+      // (type="number" or a "numbers only" hint) are skipped — no numeric guess.
+      const own = (personal["desired_salary"] ?? "").trim();
+      const numberOnly = d.type === "number" || /numbers? only|numeric only|numeric value|integer only|digits only/i.test(text);
+      if (own !== "") {
+        value = own;
+      } else if (!numberOnly && (d.type === "text" || d.type === "search")) {
+        value = "I would prefer to discuss a reasonable salary range after learning more about the role and responsibilities with the team and hiring manager during the interview.";
+        if (d.maxLength !== undefined && d.maxLength < value.length) value = value.slice(0, d.maxLength);
       }
     } else if (
       d.profileKey !== undefined &&

@@ -44,12 +44,16 @@ from .tasks import (
     Tier,
     build_field_task,
     classify_kind,
+    resolve_availability_default,
     resolve_current_employer_default,
     resolve_from_profile,
+    resolve_gender_default,
     resolve_location_preference_default,
     resolve_notice_default,
-    resolve_gender_default,
     resolve_office_frequency,
+    resolve_relocation_default,
+    resolve_salary_default,
+    resolve_work_authorization_default,
     resolve_work_model_yesno,
     resolve_work_permit,
     validate_answer,
@@ -259,6 +263,10 @@ class Coordinator:
                 direct = (
                     resolve_notice_default(spec, request.profile)
                     or resolve_gender_default(spec, request.profile)
+                    or resolve_work_authorization_default(spec, request.profile)
+                    or resolve_relocation_default(spec, request.profile)
+                    or resolve_availability_default(spec, request.profile)
+                    or resolve_salary_default(spec, request.profile)
                     or resolve_current_employer_default(spec, request.profile, request.job)
                     or resolve_location_preference_default(spec, request.profile)
                     or resolve_work_model_yesno(spec, request.profile)

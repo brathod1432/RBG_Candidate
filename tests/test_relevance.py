@@ -12,9 +12,9 @@ from server.agents.relevance import (
     base_key,
     fit_items,
     language_of,
+    plain_dashes,
     plan_language_answers,
     plan_skill_answers,
-    plain_dashes,
     profile_level,
     rank_skills,
     skill_field,
@@ -316,10 +316,12 @@ class TestLanguages:
         out = plan_language_answers(fields, profile)
         assert out["langs"] == "English"
 
-    def test_no_profile_languages_returns_empty(self) -> None:
+    def test_no_profile_languages_still_defaults_english_c2(self) -> None:
+        # D6: even with no profile languages, English level fields default to
+        # C2 (native preferred, fluent fallback) — the user's stated default.
         fields = [spec("eng_written", "English written level", "text")]
         out = plan_language_answers(fields, CandidateProfile())
-        assert out == {}
+        assert out["eng_written"].startswith("C2")
 
     def test_non_language_field_not_in_output(self) -> None:
         profile = CandidateProfile(
@@ -450,11 +452,13 @@ class TestLocationPreference:
         out = resolve_location_preference_default(fields[0], profile)
         assert out is None
 
-    def test_empty_profile_returns_none(self) -> None:
+    def test_empty_profile_returns_hard_default(self) -> None:
+        # D8: even with no profile, the hybrid preference (2-3 days from the
+        # office) answers the question — the user's stated default.
         profile = CandidateProfile()
         fields = [spec("lp", "What are your preferences regarding location and the way of working?", "textarea")]
         out = resolve_location_preference_default(fields[0], profile)
-        assert out is None
+        assert out == "2-3 days from the office"
 
     def test_bare_location_label_returns_none(self) -> None:
         profile = CandidateProfile(location="Warsaw, Poland")
@@ -907,7 +911,7 @@ class TestFillEndpointDefaults:
         assert route.call_count == 0
 
     @pytest.mark.asyncio
-    async def test_location_pref_no_data_goes_to_ai(self, client: AsyncClient, monkeypatch) -> None:
+    async def test_location_pref_no_data_uses_hard_default(self, client: AsyncClient, monkeypatch) -> None:
         monkeypatch.setenv("NVIDIA_API_KEY", "server-key")
         body = {
             "fields": [
@@ -926,9 +930,9 @@ class TestFillEndpointDefaults:
             resp = await client.post("/fill", json=body)
         assert resp.status_code == 200, resp.text
         a = resp.json()["data"]["answers"]
-        assert a["lp"]["value"] == "Open to any location."
-        assert a["lp"]["source"] == "ai"
-        assert route.call_count == 1  # no profile data -> the AI drafts it
+        assert a["lp"]["value"] == "2-3 days from the office"
+        assert a["lp"]["source"] == "profile"
+        assert route.call_count == 0  # D8: the hard default answers — no AI call
 
     @pytest.mark.asyncio
     async def test_all_defaults_one_request_zero_ai(self, client: AsyncClient, monkeypatch) -> None:

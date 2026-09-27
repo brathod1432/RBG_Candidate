@@ -11,7 +11,6 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
 
 from dotenv import load_dotenv
 
@@ -27,7 +26,7 @@ PORT = int(os.getenv("PORT", "8000"))
 
 raw_origins = os.getenv("ALLOWED_ORIGINS")
 if raw_origins:
-    ALLOWED_ORIGINS: List[str] = [o.strip() for o in raw_origins.split(",") if o.strip()]
+    ALLOWED_ORIGINS: list[str] = [o.strip() for o in raw_origins.split(",") if o.strip()]
 else:
     ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 

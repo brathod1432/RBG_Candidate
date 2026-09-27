@@ -75,7 +75,7 @@ def _phrases(skill: str) -> list[str]:
         # "(FCoE)" / "(Robot Operating System)" are real alternate names; "(working knowledge)" is not.
         if not re.search(r"knowledge|level|basic|learning|and|,", inner, re.IGNORECASE):
             add(inner)
-    for p in list(out):
+    for p in out:
         for alias in _ALIASES.get(p, []):
             add(alias)
     return out
@@ -335,6 +335,44 @@ def plan_skill_answers(
 
 # ── language fields in a form ────────────────────────────────────────────────
 
+# English default when the profile has no English level: C2 — the level ladder
+# matches "native" first, then C2/full-professional, then fluent (C1).
+_ENGLISH_DEFAULT_LEVEL = "C2 (full professional proficiency)"
+
+# CEFR code / level name → the option-word ladder to try (exact > includes).
+_LEVEL_LADDERS: dict[str, list[str]] = {
+    "native": ["native", "bilingual", "c2", "full professional", "fluent", "c1"],
+    "c2": ["native", "bilingual", "c2", "full professional", "fluent", "c1"],
+    "c1": ["c1", "advanced", "fluent", "full professional", "professional working", "c2"],
+    "fluent": ["fluent", "full professional", "c1", "professional working", "advanced"],
+    "b2": ["b2", "upper intermediate", "intermediate", "conversational", "professional working"],
+    "b1": ["b1", "intermediate", "conversational", "limited working"],
+    "a2": ["a2", "limited working", "elementary", "basic", "beginner", "b1"],
+    "a1": ["a1", "beginner", "elementary", "basic"],
+}
+
+
+def _match_level_by_ladder(level: str, options: list[str]) -> str | None:
+    """Match a profile level ("C2 (full professional proficiency)") against a
+    form's options via the CEFR ladder — so C2 finds "Native", A2 finds
+    "Limited working proficiency", and a level with no option never guesses.
+    Each ladder entry tries exact then partial, so a looser entry can't beat
+    a closer one.
+    """
+    n = _norm(level)
+    cefr_match = re.search(r"\b(c2|c1|b2|b1|a2|a1)\b", n)
+    ladder = _LEVEL_LADDERS.get(cefr_match.group(1) if cefr_match else "", None) or _LEVEL_LADDERS.get(n, None) or [n]
+    for want in ladder:
+        for option in options:
+            if _norm(option) == want:
+                return option
+        for option in options:
+            o = _norm(option)
+            if o and (want in o or o in want):
+                return option
+    return None
+
+
 _LANGUAGES = {  # names the profile/CV may use → normalised key
     "english": ["english"],
     "polish": ["polish", "polski"],
@@ -389,10 +427,10 @@ def plan_language_answers(fields: list, profile: CandidateProfile) -> dict[str, 
       gets the profile's top language NAME, or "English" when the profile has no languages.
     - Selects: language-level selects match the profile level against options;
       generic language selects (no level word) are skipped (no level to match).
+    - When the profile has no English level, the default is C2 ("native" first,
+      then "fluent") — matched against the form's options via the level ladder.
     """
     out: dict[str, str] = {}
-    if not profile.languages:
-        return out
     for spec in fields:
         if spec.type not in ("text", "search", "textarea", "select"):
             continue
@@ -411,32 +449,33 @@ def plan_language_answers(fields: list, profile: CandidateProfile) -> dict[str, 
             # Language-level select (has language name OR has level word) → match level against options
             if lang is not None or has_level_word:
                 level = profile_level(profile.languages, lang) if lang else profile_level(profile.languages, "english")
+                if level is None:
+                    level = _ENGLISH_DEFAULT_LEVEL if lang in (None, "english") else None
                 if level is not None:
-                    for option in spec.options:
-                        o = _norm(option)
-                        if o == _norm(level) or o in _norm(level) or _norm(level) in o:
-                            out[spec.id] = option
-                            break
+                    matched = _match_level_by_ladder(level, spec.options)
+                    if matched is not None:
+                        out[spec.id] = matched
             # Generic language select (no language name, no level word) → skip, no level to match
             continue
         # Text/textarea fields
         if lang is not None:
             # Named language field (with or without level word) → that language's level
             level = profile_level(profile.languages, lang)
+            if level is None and lang == "english":
+                # The candidate's standing default: English C2 (native preferred).
+                level = _ENGLISH_DEFAULT_LEVEL
             if level:
                 out[spec.id] = smart_truncate(level, spec.max_length)
             continue
         # No language name detected
         if has_level_word:
-            # Level field with no language name → English level (default)
-            level = profile_level(profile.languages, "english")
-            if level:
-                out[spec.id] = smart_truncate(level, spec.max_length)
+            # Level field with no language name → English level (default: C2)
+            level = profile_level(profile.languages, "english") or _ENGLISH_DEFAULT_LEVEL
+            out[spec.id] = smart_truncate(level, spec.max_length)
             continue
         # Generic "Language(s)" field (has "language" word, no level word, no language name) → top language NAME
         if has_language_word:
-            first = profile.languages[0]
-            name = (getattr(first, "language", "") or "").strip()
-            if name:
-                out[spec.id] = smart_truncate(name, spec.max_length)
+            first = profile.languages[0] if profile.languages else None
+            name = (getattr(first, "language", "") or "").strip() or "English"
+            out[spec.id] = smart_truncate(name, spec.max_length)
     return out

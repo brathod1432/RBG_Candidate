@@ -19,16 +19,16 @@ from .models import (
 )
 
 __all__ = [
-    "FormRequest",
     "AnalyzeData",
     "AnalyzeResponse",
-    "ErrorResponse",
     "CandidateProfile",
+    "ErrorResponse",
     "FieldAnswer",
     "FieldSpec",
     "FillData",
     "FillRequest",
     "FillResponse",
     "FillStats",
+    "FormRequest",
     "JobContext",
 ]

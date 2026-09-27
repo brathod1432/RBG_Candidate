@@ -18,7 +18,9 @@ export const AGENT_PALETTE: ReadonlyArray<AgentPersona> = [
 ];
 
 export const MIN_AGENTS = 1;
-export const MAX_AGENTS = AGENT_PALETTE.length;
+// The user's cap: 5 is the maximum crew size the AI may use ("5 is the max that
+// I can increase"). The palette keeps a sixth persona in reserve.
+export const MAX_AGENTS = Math.min(5, AGENT_PALETTE.length);
 export const DEFAULT_AGENTS = 3;
 
 export type TypingSpeed = "slow" | "normal" | "fast";

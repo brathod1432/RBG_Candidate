@@ -412,3 +412,79 @@ describe('AI suggestion plumbing', (): void => {
     expect(result.reason).toBe('fill failed with status 403 (INVALID_KEY)');
   });
 });
+
+describe('common-question defaults (offline)', (): void => {
+  const EMPTY = (personal: Record<string, string> = {}): UserProfile => ({
+    ...PROFILE,
+    details: {
+      personal,
+      headline: '', summary: '', experience: [], education: [],
+      skills: {}, languages: [], certifications: [], projects: [], answers: {}, totalYears: 0, importedAt: 1,
+    },
+  });
+
+  afterEach((): void => {
+    vi.unstubAllGlobals();
+  });
+
+  it('work authorization select defaults to Yes (open work permit assumed)', (): void => {
+    const s = localSuggestions(EMPTY(), [
+      d('wa', 'Are you authorized to work in Poland?', { type: 'select', options: ['Yes', 'No'] }),
+    ]);
+    expect(s['wa']?.value).toBe('Yes');
+  });
+
+  it('work authorization status text gets the sentence', (): void => {
+    const s = localSuggestions(EMPTY(), [d('wa', 'What is your work authorization status?')]);
+    expect(s['wa']?.value).toBe('Authorized to work with an open work permit; no visa sponsorship required');
+  });
+
+  it('relocation to Warsaw selects Yes; to Berlin selects No', (): void => {
+    const s = localSuggestions(EMPTY(), [
+      d('r1', 'Are you willing to relocate to Warsaw, Poland?', { type: 'select', options: ['Yes', 'No'] }),
+      d('r2', 'Are you willing to relocate to Berlin, Germany?', { type: 'select', options: ['Yes', 'No'] }),
+    ]);
+    expect(s['r1']?.value).toBe('Yes');
+    expect(s['r2']?.value).toBe('No');
+  });
+
+  it('plain relocation question defaults to Yes', (): void => {
+    const s = localSuggestions(EMPTY(), [d('r', 'Are you willing to relocate?')]);
+    expect(s['r']?.value).toBe('Yes');
+  });
+
+  it('availability text gets the next 1st/15th window (YYYY-MM-DD)', (): void => {
+    const s = localSuggestions(EMPTY(), [d('a', 'Available from')]);
+    expect(s['a']?.value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('availability select picks Immediate when offered', (): void => {
+    const s = localSuggestions(EMPTY(), [
+      d('a', 'Availability', { type: 'select', options: ['In 2 weeks', 'Immediate', 'Next month'] }),
+    ]);
+    expect(s['a']?.value).toBe('Immediate');
+  });
+
+  it('salary text gets the conversational default; number inputs stay empty', (): void => {
+    const s = localSuggestions(EMPTY(), [
+      d('s1', 'Salary expectation'),
+      d('s2', 'Expected salary (numbers only)'),
+    ]);
+    expect(s['s1']?.value).toContain('reasonable salary range');
+    expect(s['s2']?.value).toBe('');
+  });
+
+  it('profile values still win over the defaults', (): void => {
+    const s = localSuggestions(EMPTY({ visa_sponsorship: 'requires sponsorship' }), [
+      d('v', 'Do you require visa sponsorship?', { type: 'select', options: ['Yes', 'No'] }),
+    ]);
+    expect(s['v']?.value).toBe('Yes');
+  });
+
+  it('preferred work model select defaults to a hybrid option with no profile', (): void => {
+    const s = localSuggestions(EMPTY(), [
+      d('wm', 'Preferred work model', { type: 'select', options: ['On-site', 'Hybrid', 'Remote'] }),
+    ]);
+    expect(s['wm']?.value).toBe('Hybrid');
+  });
+});

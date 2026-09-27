@@ -10,6 +10,7 @@ The coordinator uses this module to:
 import itertools
 import re
 from dataclasses import dataclass, field
+from datetime import date as _date
 from typing import Any, Literal
 
 from ..nvidia_client import ModelOutputError, dumps_compact
@@ -112,6 +113,12 @@ def resolve_from_profile(spec: FieldSpec, profile: CandidateProfile) -> str | No
         return None
     text = field_text(spec)
     label = (spec.label or spec.placeholder or spec.id).strip().lower()
+    if _RELOCATION_YESNO.search(label):
+        # Yes/no relocation questions ("Are you willing to relocate to X?") are
+        # answered by resolve_relocation_default (destination-based Yes/No) in
+        # the coordinator's defaults chain — the bare profile string could answer
+        # Yes to a city outside the candidate's acceptable area.
+        return None
     for key, pattern in _RULES:
         target = label if key in _LABEL_ONLY else text
         if not pattern.search(target):
@@ -243,6 +250,27 @@ _LOCATION_PREF_HINT = re.compile(
     re.IGNORECASE,
 )
 
+# Yes/no relocation questions — handled by resolve_relocation_default, not the
+# bare willing_to_relocate rule (which could answer Yes to a city the candidate
+# would not move to).
+_RELOCATION_YESNO = re.compile(
+    r"^(are|do|would|could|can) you\b[^\?]*\b(relocate|moving|relocation)\b",
+    re.IGNORECASE,
+)
+
+# Polish cities — relocation to any of them is a Yes for a candidate based in Poland.
+_POLAND_CITIES = (
+    "warsaw", "warszawa", "krakow", "kraków", "wroclaw", "wrocław", "gdansk", "gdańsk",
+    "gdynia", "poznan", "poznań", "lodz", "łódź", "katowice", "lublin", "szczecin",
+    "bydgoszcz", "bialystok", "białystok", "rzeszow", "rzeszów", "torun", "toruń",
+    "kielce", "olsztyn", "zabrze", "gliwice", "bielsko-biala", "bielsko-biała",
+    "radom", "rybnik", "tychy", "opole", "elblag", "elbląg", "plock", "płock",
+    "walbrzych", "wałbrzych", "legnica", "kalisz", "koszalin", "nowy sacz",
+)
+
+# Generic relocation destinations — not a real place, so unspecified ("a different city").
+_GENERIC_DEST = re.compile(r"\b(different|another|other|any|elsewhere|anywhere)\b", re.IGNORECASE)
+
 
 def resolve_location_preference_default(spec: FieldSpec, profile: CandidateProfile) -> str | None:
     """Location / way-of-working preference questions: answered from the profile.
@@ -257,6 +285,18 @@ def resolve_location_preference_default(spec: FieldSpec, profile: CandidateProfi
     location = (profile.location or "").strip()
     mode = (profile.work_mode or "").strip()
     if not location and not mode:
+        # Hard default: the candidate's hybrid preference (2-3 days from the
+        # office) even with no profile — selects get the best-matching option.
+        if spec.type == "select" or spec.options:
+            for option in spec.options:
+                if re.search(r"2\s*-\s*3|2\s*to\s*3", _norm(option), re.IGNORECASE):
+                    return option
+            for option in spec.options:
+                if "hybrid" in _norm(option):
+                    return option
+            return None
+        if spec.type in ("text", "search", "textarea"):
+            return smart_truncate("2-3 days from the office", spec.max_length)
         return None
     if spec.type == "select" or spec.options:
         return match_option(mode, spec.options) if mode else None
@@ -377,7 +417,7 @@ def resolve_work_permit(spec: FieldSpec, profile: CandidateProfile) -> str | Non
     if not re.search(r"work ?permit|visa|sponsorship", text, re.IGNORECASE):
         return None
     own = (profile.visa_sponsorship or "").strip().lower()
-    requires = bool(own and re.search(r"\b(yes|true|require[d]?|need(?:ed)?|sponsor(?:ed)?)\b", own))
+    requires = bool(own and re.search(r"\b(yes|true|require[ds]?|need(?:ed)?|sponsor[ds]?)\b", own))
     if spec.type == "select" or spec.options:
         if any(_norm(o) in _YESNO_OPTIONS for o in spec.options):
             want = "yes" if requires else "no"
@@ -388,6 +428,154 @@ def resolve_work_permit(spec: FieldSpec, profile: CandidateProfile) -> str | Non
         return None
     if spec.type in ("text", "search"):
         return "Yes" if requires else "No"
+    return None
+
+
+def resolve_work_authorization_default(spec: FieldSpec, profile: CandidateProfile) -> str | None:
+    """Work-authorization questions: Yes — the candidate is authorized to work
+    (open work permit assumed, no sponsorship needed), unless the profile
+    explicitly says otherwise.
+
+    "Are you authorized to work in Poland?" -> "Yes". An open status question
+    ("What is your work authorization status?") gets the status sentence.
+    """
+    text = field_text(spec)
+    if not re.search(
+        r"work authori[sz]ation|authori[sz]ed to work|legally authori[sz]ed|right to work|"
+        r"eligible to work|work eligibility|permitted to work",
+        text,
+        re.IGNORECASE,
+    ):
+        return None
+    own = (profile.work_authorization or "").strip()
+    if own:
+        if spec.type == "select" or spec.options:
+            return match_option(own, spec.options)
+        if spec.type in ("text", "search"):
+            return own
+        return None
+    # Hard default: authorized to work (the candidate's standing assumption).
+    if spec.type == "select" or spec.options:
+        if any(_norm(o) in _YESNO_OPTIONS for o in spec.options):
+            for option in spec.options:
+                if _norm(option) == "yes":
+                    return option
+        return None
+    if spec.type in ("text", "search"):
+        yesno_question = bool(
+            re.search(r"^(are|do|can|would|could) you\b", (spec.label or spec.placeholder or spec.id).strip().lower())
+        )
+        if yesno_question:
+            return "Yes"
+        return "Authorized to work with an open work permit; no visa sponsorship required"
+    return None
+
+
+def resolve_relocation_default(spec: FieldSpec, profile: CandidateProfile) -> str | None:
+    """'Willing to relocate to [X]?' — Yes when X is the candidate's city or
+    anywhere in Poland; No when X is outside Poland. A plain "willing to
+    relocate?" (no destination) -> Yes. One answer, never more.
+    """
+    text = field_text(spec)
+    if not re.search(r"willing to (relocate|move)|\brelocat", text, re.IGNORECASE):
+        return None
+    is_select_yesno = (spec.type == "select" or bool(spec.options)) and any(
+        _norm(o) in _YESNO_OPTIONS for o in spec.options
+    )
+    is_yesno_question = bool(
+        re.search(r"^(are|do|would|could|can) you\b", (spec.label or spec.placeholder or spec.id).strip().lower())
+    )
+    if not is_select_yesno and not is_yesno_question:
+        return None  # open text falls through to the profile's own relocation line
+
+    match = re.search(
+        r"(?:relocat\w*|moving|move)\s+(?:to|in|at)\s+((?:our |the |a |an )?[a-z][a-z\s\-]{1,40}?)[\?.,;!]",
+        text,
+        re.IGNORECASE,
+    )
+    dest = match.group(1).strip() if match else None
+    if dest:
+        dest = re.sub(r"^(our|the|a|an)\s+", "", dest, flags=re.IGNORECASE).strip()
+    answer: str
+    if dest is None or _GENERIC_DEST.search(dest) or any(city in dest for city in _POLAND_CITIES):
+        answer = "Yes"
+    else:
+        answer = "No"
+    if spec.type == "select" or spec.options:
+        want = _norm(answer)
+        for option in spec.options:
+            if _norm(option) == want:
+                return option
+        return None
+    if spec.type in ("text", "search"):
+        return answer
+    return None
+
+
+_SALARY_NUMBER_ONLY = re.compile(r"numbers? only|numeric only|numeric value|integer only|digits only", re.IGNORECASE)
+
+_SALARY_DEFAULT = (
+    "I would prefer to discuss a reasonable salary range after learning more about "
+    "the role and responsibilities with the team and hiring manager during the interview."
+)
+
+
+def resolve_salary_default(spec: FieldSpec, profile: CandidateProfile) -> str | None:
+    """Salary-expectation fields: the profile's figure when set; otherwise a
+    one-sentence conversational default for string fields. Number-only inputs
+    (type="number" or a "numbers only" hint) are skipped — no numeric guess.
+    """
+    text = field_text(spec)
+    if not re.search(r"salary|compensation|pay expectation|pay range", text, re.IGNORECASE):
+        return None
+    own = (profile.desired_salary or "").strip()
+    if own:
+        if spec.type == "select" or spec.options:
+            return match_option(own, spec.options)
+        return own
+    if spec.type == "number" or _SALARY_NUMBER_ONLY.search(text):
+        return None
+    if spec.type == "select" or spec.options:
+        return None  # no numeric default to match — the AI picks from the options
+    if spec.type in ("text", "search", "textarea"):
+        return smart_truncate(_SALARY_DEFAULT, spec.max_length)
+    return None
+
+
+def resolve_availability_default(spec: FieldSpec, profile: CandidateProfile) -> str | None:
+    """Availability / start-date fields: the profile's date when set; otherwise
+    the next 1st/15th window (YYYY-MM-DD) — the soonest "immediate" start:
+    before the 15th -> the 15th of this month; from the 15th -> the 1st of next
+    month. Selects get an "Immediate"-style option first, then the date match.
+    """
+    text = field_text(spec)
+    if not re.search(r"available from|availability|earliest start|start date|when can you start", text, re.IGNORECASE):
+        return None
+    own = (profile.available_from or "").strip()
+    if own:
+        if spec.type == "select" or spec.options:
+            return match_option(own, spec.options)
+        return own
+    # The candidate's LOCAL date, not UTC — the availability window must follow
+    # the user's calendar (a Poland user is UTC+1/+2 off server UTC).
+    today = _date.today()  # noqa: DTZ011 — local date is the requirement here
+    if today.day < 15:
+        target = _date(today.year, today.month, 15)
+    else:
+        year = today.year + (1 if today.month == 12 else 0)
+        month = 1 if today.month == 12 else today.month + 1
+        target = _date(year, month, 1)
+    iso = target.strftime("%Y-%m-%d")
+    if spec.type == "select" or spec.options:
+        for option in spec.options:
+            if re.search(r"immediat", option, re.IGNORECASE):
+                return option
+        for option in spec.options:
+            if _norm(option) == iso or iso in _norm(option):
+                return option
+        return None
+    if spec.type in ("text", "search"):
+        return iso
     return None
 
 

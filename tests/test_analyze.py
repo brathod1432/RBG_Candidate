@@ -2,9 +2,10 @@
 """Tests for POST /analyze endpoint with mocked NVIDIA client."""
 
 import json
+
+import httpx
 import pytest
 import respx
-import httpx
 from fastapi import HTTPException
 from httpx import AsyncClient
 

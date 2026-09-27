@@ -63,12 +63,34 @@ function isLanguageLevelField(d: FieldDescriptor): boolean {
   return true;
 }
 
-/** Match a profile level against select options (exact then partial). */
+/** Match a profile level against select options via the CEFR ladder
+ * (C2 finds "Native", A2 finds "Limited working proficiency") — a level with
+ * no matching option never guesses. */
+const ENGLISH_DEFAULT_LEVEL = "C2 (full professional proficiency)";
+
+const LEVEL_LADDERS: Record<string, string[]> = {
+  native: ["native", "bilingual", "c2", "full professional", "fluent", "c1"],
+  c2: ["native", "bilingual", "c2", "full professional", "fluent", "c1"],
+  c1: ["c1", "advanced", "fluent", "full professional", "professional working", "c2"],
+  fluent: ["fluent", "full professional", "c1", "professional working", "advanced"],
+  b2: ["b2", "upper intermediate", "intermediate", "conversational", "professional working"],
+  b1: ["b1", "intermediate", "conversational", "limited working"],
+  a2: ["a2", "limited working", "elementary", "basic", "beginner", "b1"],
+  a1: ["a1", "beginner", "elementary", "basic"],
+};
+
 function matchLevelOption(level: string, options: string[]): string | undefined {
   const n = norm(level);
-  for (const o of options) {
-    const on = norm(o);
-    if (on === n || on.includes(n) || n.includes(on)) return o;
+  const cefr = /\b(c2|c1|b2|b1|a2|a1)\b/.exec(n)?.[1] ?? '';
+  const ladder = LEVEL_LADDERS[cefr] ?? LEVEL_LADDERS[n] ?? [n];
+  for (const want of ladder) {
+    for (const o of options) {
+      if (norm(o) === want) return o;
+    }
+    for (const o of options) {
+      const on = norm(o);
+      if (on !== '' && (want.includes(on) || on.includes(want))) return o;
+    }
   }
   return undefined;
 }
@@ -86,7 +108,6 @@ export function planLanguageValues(
   _job?: JobContext,
 ): Record<string, string> {
   const out: Record<string, string> = {};
-  if (languages.length === 0) return out;
 
   // Pre-compute level for each language once
   const levelByLang: Record<string, string> = {};
@@ -97,8 +118,9 @@ export function planLanguageValues(
     }
   }
 
-  // English default level (if profile has English)
-  const englishLevel = levelByLang["english"] ?? null;
+  // English default level: the profile's level when set; otherwise C2
+  // ("native" first, then fluent) — matched against options via the ladder.
+  const englishLevel = levelByLang["english"] ?? ENGLISH_DEFAULT_LEVEL;
 
   for (const d of descriptors) {
     if (!["text", "search", "textarea", "select"].includes(d.type)) continue;
@@ -113,7 +135,10 @@ export function planLanguageValues(
     if (d.type === "select" || d.options.length > 0) {
       // Language-level select (has language name OR has level word) → match level against options
       if (lang !== null || hasLevelWord) {
-        const level = lang !== null ? levelByLang[lang] : englishLevel;
+        const level =
+          lang !== null
+            ? levelByLang[lang] ?? (lang === "english" ? ENGLISH_DEFAULT_LEVEL : undefined)
+            : englishLevel;
         if (level !== undefined && level !== null) {
           const matched = matchLevelOption(level, d.options);
           if (matched !== undefined) out[d.id] = matched;
@@ -125,7 +150,7 @@ export function planLanguageValues(
 
     if (lang !== null) {
       // Named language field (with or without level word) → that language's level
-      const level = levelByLang[lang];
+      const level = levelByLang[lang] ?? (lang === "english" ? ENGLISH_DEFAULT_LEVEL : undefined);
       if (level) out[d.id] = d.maxLength ? level.slice(0, d.maxLength) : level;
       continue;
     }
@@ -142,7 +167,7 @@ export function planLanguageValues(
     // Generic "Language(s)" field (has "language" word, no level word, no language name) → top language NAME
     if (hasLanguageWord) {
       const first = languages[0];
-      const name = (first?.language ?? "").trim();
+      const name = (first?.language ?? "English").trim();
       if (name) out[d.id] = d.maxLength ? name.slice(0, d.maxLength) : name;
     }
   }

@@ -60,9 +60,9 @@ describe('language level planning', (): void => {
     expect(out['langs']).toBe('English');
   });
 
-  it('no profile languages returns empty', (): void => {
+  it('no profile languages still defaults English to C2', (): void => {
     const out = planLanguageValues([], [d('eng_written', 'English written level')]);
-    expect(out).toEqual({});
+    expect(out['eng_written']).toContain('C2');
   });
 
   it('non-language field not in output', (): void => {
@@ -107,5 +107,54 @@ describe('language level planning', (): void => {
       [d('eng_lvl', 'English level', { maxLength: 10 })],
     );
     expect(out['eng_lvl'].length).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('CEFR level ladder', (): void => {
+  it('C2 matches the Native option', (): void => {
+    const out = planLanguageValues(
+      [{ language: 'English', level: 'C2 (full professional proficiency)' }],
+      [d('eng', 'What is your English level?', { type: 'select', options: ['Native', 'Fluent', 'Intermediate'] })],
+    );
+    expect(out['eng']).toBe('Native');
+  });
+
+  it('A2 matches Limited working proficiency (not Basic)', (): void => {
+    const out = planLanguageValues(
+      [{ language: 'Polish', level: 'A2 (limited working proficiency)' }],
+      [
+        d('pol', 'What is your Polish level?', {
+          type: 'select',
+          options: ['Native', 'Fluent', 'Limited working proficiency', 'Basic'],
+        }),
+      ],
+    );
+    expect(out['pol']).toBe('Limited working proficiency');
+  });
+
+  it('no profile English: defaults to Native when available, else Fluent', (): void => {
+    const native = planLanguageValues(
+      [],
+      [d('eng', 'What is your English level?', { type: 'select', options: ['Native', 'Fluent'] })],
+    );
+    expect(native['eng']).toBe('Native');
+    const fluent = planLanguageValues(
+      [],
+      [d('eng', 'What is your English level?', { type: 'select', options: ['Fluent', 'Intermediate'] })],
+    );
+    expect(fluent['eng']).toBe('Fluent');
+  });
+
+  it('generic Languages text field defaults to English with no profile', (): void => {
+    const out = planLanguageValues([], [d('lang', 'Languages')]);
+    expect(out['lang']).toBe('English');
+  });
+
+  it('generic language dropdown with no profile level still leaves the field for the AI', (): void => {
+    const out = planLanguageValues(
+      [{ language: 'Polish', level: 'intermediate' }],
+      [d('lang_sel', 'Language', { type: 'select', options: ['English', 'Polish'] })],
+    );
+    expect(out['lang_sel']).toBeUndefined();
   });
 });

@@ -8,7 +8,7 @@ account's requests-per-minute budget (NVIDIA free tier is ~40 RPM).
 import asyncio
 import time
 from collections import deque
-from typing import Callable
+from collections.abc import Callable
 
 
 class RateLimiter:

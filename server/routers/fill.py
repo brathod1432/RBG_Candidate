@@ -11,7 +11,13 @@ from fastapi.security import APIKeyHeader
 from ..agents import get_coordinator
 from ..nvidia_client import NvidiaError
 from ..schemas import ErrorResponse, FillRequest, FillResponse
-from .guards import check_rate_limit, get_client_ip, resolve_api_key, upstream_http_error
+from ..utils.vault import record_fill
+from .guards import (
+    check_rate_limit,
+    get_client_ip,
+    resolve_api_key,
+    upstream_http_error,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +50,9 @@ async def fill_form(
         data = await coordinator.fill(payload, api_key)
     except NvidiaError as exc:
         raise upstream_http_error(exc) from exc
+    # History vault: every answered field is appended (DPAPI-encrypted,
+    # non-blocking) to %APPDATA%\RBG_Candidate\history — 60-day TTL.
+    record_fill(data.answers, payload.fields, payload.job.url if payload.job else None)
     return FillResponse(status="ok", data=data)
 
 

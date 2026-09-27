@@ -13,6 +13,7 @@ import {
 import { runHealthCheck } from "../usePrepareHealth";
 import { toMessage } from "../chrome";
 import { PROFILE_FIELDS, usePopupStore } from "../store";
+import { profileCompleteness } from "../../profile/completeness";
 import AgentSettings from "../components/AgentSettings";
 import Icon from "../components/Icon";
 import ProfileImport from "../components/ProfileImport";
@@ -213,6 +214,24 @@ export default function SettingsTab(): JSX.Element {
           </div>
         </div>
         <ProfileImport onImported={(p) => setForm(toForm(p))} />
+        {hasProfile && (() => {
+          const c = profileCompleteness(profile?.details?.personal ?? {});
+          if (c.missingCritical.length === 0) return null;
+          return (
+            <div
+              role="button"
+              tabIndex={0}
+              style={{ marginTop: 10, fontSize: 12, lineHeight: 1.45, opacity: 0.78, cursor: "pointer" }}
+              onClick={() => setEditOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setEditOpen(true);
+              }}
+            >
+              <strong>Profile completeness: {c.percent}%</strong> — missing: {c.missingCritical.join(", ")}.{" "}
+              Defaults cover these at fill time; click to fill them in yourself.
+            </div>
+          );
+        })()}
         {hasProfile && (
           <button type="button" className="btn primary block" style={{ marginTop: 12 }} onClick={() => setTab("fill")}>
             Next: scan a job page <Icon name="arrowRight" />

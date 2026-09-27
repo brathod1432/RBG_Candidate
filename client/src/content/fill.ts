@@ -99,6 +99,53 @@ export function fillCheckedFieldsInPage(args: {
     window.setTimeout(tick, 400);
   }
 
+  /** Post-fill banner: what was filled, and a pointer to the Review tab
+   * where defaults (applied where the profile was empty) can be changed. */
+  function showFillBanner(count: number, applied: Array<[string, string]>): void {
+    try {
+      const host = document.createElement("div");
+      host.setAttribute(
+        "style",
+        "position:fixed;right:16px;bottom:16px;z-index:2147483647;max-width:340px;background:#111827;color:#f9fafb;" +
+          "font:12px/1.45 'Segoe UI',system-ui,sans-serif;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);" +
+          "padding:12px 30px 12px 14px;",
+      );
+      const title = document.createElement("div");
+      title.textContent = `RBG filled ${count} field${count === 1 ? "" : "s"}`;
+      title.setAttribute("style", "font-weight:600;margin-bottom:4px;");
+      host.appendChild(title);
+      for (const [name, val] of applied.slice(0, 8)) {
+        const row = document.createElement("div");
+        row.setAttribute("style", "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0;");
+        const strong = document.createElement("strong");
+        strong.textContent = name;
+        strong.setAttribute("style", "color:#93c5fd;");
+        row.appendChild(strong);
+        row.appendChild(document.createTextNode(` = ${val}`));
+        host.appendChild(row);
+      }
+      const note = document.createElement("div");
+      note.textContent =
+        "Defaults were applied where your profile was empty — review each in the extension popup (Review tab) before submitting.";
+      note.setAttribute("style", "margin-top:6px;opacity:.75;");
+      host.appendChild(note);
+      const close = document.createElement("button");
+      close.type = "button";
+      close.textContent = "×";
+      close.setAttribute(
+        "style",
+        "position:absolute;top:6px;right:8px;background:none;border:none;color:#f9fafb;font-size:14px;cursor:pointer;pointer-events:auto;line-height:1;padding:2px;",
+      );
+      close.addEventListener("click", () => host.remove());
+      host.appendChild(close);
+      document.body.appendChild(host);
+      window.setTimeout(() => host.remove(), 12000);
+    } catch (_err: unknown) {
+      // the banner is best-effort — never blocks the fill
+    }
+  }
+
+  const applied: Array<[string, string]> = [];
   for (const [field, value] of Object.entries(args.values)) {
     const selector = args.selectors[field];
     if (typeof selector !== "string" || selector === "" || value === "") {
@@ -151,6 +198,7 @@ export function fillCheckedFieldsInPage(args: {
       }
       target.click();
       target.dispatchEvent(new Event("change", { bubbles: true }));
+      applied.push([field, value]);
       filled += 1;
       continue;
     }
@@ -165,11 +213,13 @@ export function fillCheckedFieldsInPage(args: {
         continue; // not a yes/no answer — leave the box alone
       }
       if (cb.checked === shouldCheck) {
+        applied.push([field, value]);
         filled += 1; // already in the answered state
         continue;
       }
       cb.click();
       cb.dispatchEvent(new Event("change", { bubbles: true }));
+      applied.push([field, value]);
       filled += 1;
       continue;
     }
@@ -205,7 +255,9 @@ export function fillCheckedFieldsInPage(args: {
       // company, university pickers) — typing alone does not register the selection.
       scheduleTypeaheadPick(el, next);
     }
+    applied.push([field, value]);
     filled += 1;
   }
+  showFillBanner(filled, applied);
   return filled;
 }

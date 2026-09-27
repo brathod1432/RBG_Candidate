@@ -546,7 +546,12 @@ async function runInternal(args: AgentFillArgs): Promise<AgentFillReport> {
   }
 
   const overlay = new Overlay();
-  const personas = personasFor(Math.min(args.agents, tasks.length));
+  // AI-adjusted worker count (1-5) by form size — replaces the default 3:
+  // 1-2 fields -> 1 worker, 3-5 -> 2, 6-15 -> 3, 16-30 -> 4, longer -> 5.
+  // An explicit popup choice (a number other than the default 3) always wins.
+  const aiOptimal = tasks.length <= 2 ? 1 : tasks.length <= 5 ? 2 : tasks.length <= 15 ? 3 : tasks.length <= 30 ? 4 : 5;
+  const chosen = args.agents !== 3 ? args.agents : aiOptimal;
+  const personas = personasFor(Math.min(Math.max(1, Math.min(5, chosen)), tasks.length));
   const agents = personas.map((p, i) => new TypingAgent(p, i, overlay));
   let finishNow = false;
   const instant = (): boolean => finishNow;

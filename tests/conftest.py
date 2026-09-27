@@ -3,9 +3,10 @@
 
 import os
 from collections.abc import AsyncIterator
+
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 # Force-empty so the suite never touches the real NVIDIA API by accident;
 # individual tests opt in via monkeypatch.setenv. (Process env only.)
@@ -16,7 +17,7 @@ os.environ.setdefault("PORT", "8000")
 os.environ["AI_DISCOVER_MODELS"] = "0"
 os.environ.setdefault("NVIDIA_MAX_RPM", "1000")
 
-from server.main import create_app  # noqa: E402
+from server.main import create_app
 
 
 @pytest.fixture(autouse=True)

@@ -21,6 +21,20 @@ _Written 2026-09-24, after the coordinator + worker-pool pass._
 
 ## Next steps, in priority order
 
+> **Status update (2026-09-27).** Most of this list shipped since 2026-09-24:
+> **Done** — #2 radio/checkbox descriptors + combobox/typeahead pickers (`describe.ts`, `content/typeahead.ts`);
+> #4 AI consent switch; #6 server URL + `optional_host_permissions`; #8 answer memory (cache by label/profile/job);
+> #11 structured profile (work auth, visa, relocation, work mode, notice, availability, salary, languages, skills);
+> #13 React popup with a real design system; #18 status docs tied to test results (pytest 171/171 · vitest 117/117).
+> **Partially done** — #7 BYOK enforced, the shared-secret header for public deployments is still open;
+> #12 JobContext exists (title/company/url/description), schema.org JobPosting JSON-LD reading is still open.
+> **Still open** — #3 iframes and shadow DOM (Greenhouse/Lever embeds); #9 optional coordinator review pass;
+> #10 SSE progress streaming; #14 legacy `/analyze` + FieldMap paths; #15 old E2E specs; #16 dependency pinning;
+> #17 stray files (`_backup_*` folders, `testpath.js`, `search_logs.py`, empty `test-minimal-extension/`);
+> #19 `git init` — git is not installed on this machine. The repo is otherwise Git-ready: `.gitignore` already
+> excludes `profiles/` (personal data), `.env`/secrets, `.opencode/`, `client/dist`, venvs and node_modules.
+> Install git, then: `git init && git add -A && git commit -m "Initial commit"`.
+
 ### P0: do these next
 1. **Run the live check on your key:** `.venv\Scripts\python.exe scripts\nvidia_smoke_test.py`. If a default model isn't available to your key, the script lists the ones that are. Put your picks in `NVIDIA_FAST_MODELS` and `NVIDIA_QUALITY_MODELS` in `.env`.
 2. **Real ATS controls.** Only native `<input>`, `<textarea>` and `<select>` are detected today. Common gaps:

@@ -12,6 +12,8 @@ How to use:
 2. Keep the "##" section headings. Copy a "###" block to add more jobs, schools or projects.
 3. Dates: YYYY-MM (e.g. 2021-03), "Mar 2021", or just a year. Use "present" for a current job.
 4. Import it in the extension: Settings → Profile from Markdown → Import .md
+5. DEFAULT values: fields with a "DEFAULT:" comment are auto-filled with that default when
+   left empty. Remove the comment and type your own value to override the default.
 Everything stays on your device. Only fields a job form actually asks about are sent to the AI.
 -->
 
@@ -30,13 +32,13 @@ Everything stays on your device. Only fields a job form actually asks about are 
 - LinkedIn:
 - GitHub:
 - Website:
-- Work authorization:
-- Requires visa sponsorship:
-- Willing to relocate:
-- Preferred work mode:
-- Notice period:
-- Available from:
-- Desired salary:
+- Work authorization: <!-- DEFAULT: Yes - authorized to work (open work permit assumed); no sponsorship needed. Remove this comment and type your value to override. -->
+- Requires visa sponsorship: <!-- DEFAULT: No - no sponsorship needed. Remove this comment and type your value to override. -->
+- Willing to relocate: <!-- DEFAULT: Yes within Poland (any city), No outside Poland. Remove this comment and type your value to override. -->
+- Preferred work mode: <!-- DEFAULT: hybrid (2-3 days from the office). Remove this comment and type your value to override. -->
+- Notice period: <!-- DEFAULT: Immediate, or Two weeks when no immediate option exists. Remove this comment and type your value to override. -->
+- Available from: <!-- DEFAULT: the next 1st or 15th (YYYY-MM-DD). Remove this comment and type your value to override. -->
+- Desired salary: <!-- DEFAULT: discussed after learning the role (string fields only; number-only inputs stay empty). Remove this comment and type your value to override. -->
 - Gender: <!-- optional - male/female; pre-fills gender fields on forms -->
 
 ## Headline

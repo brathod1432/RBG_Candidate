@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AGENT_PALETTE,
   clampAgents,
+  MAX_AGENTS,
   MAX_FIELD_TYPING_MS,
   normalizeFillPrefs,
   personasFor,
@@ -19,7 +20,7 @@ describe('typing agents palette', (): void => {
 
   it('clamps agent count and normalises prefs', (): void => {
     expect(clampAgents(0)).toBe(1);
-    expect(clampAgents(99)).toBe(AGENT_PALETTE.length);
+    expect(clampAgents(99)).toBe(MAX_AGENTS);
     expect(clampAgents('x')).toBe(3);
     expect(normalizeFillPrefs(null)).toEqual({ animate: true, agents: 3, speed: 'normal', aiProfileConsent: true });
     expect(normalizeFillPrefs({ animate: false, agents: 5, speed: 'fast' })).toEqual({

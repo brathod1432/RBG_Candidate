@@ -4,7 +4,7 @@
 import pytest
 from pydantic import ValidationError
 
-from server.schemas import FormRequest, AnalyzeResponse, ErrorResponse, AnalyzeData
+from server.schemas import AnalyzeData, AnalyzeResponse, ErrorResponse, FormRequest
 
 
 class TestFormRequest:
