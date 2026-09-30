@@ -396,3 +396,93 @@ Expect: pip upgraded → dev requirements installed → `pip list` shown → `ve
 - Over-long answers are cut at a sentence, list-item or word boundary instead of mid-word. Em and en dashes become plain hyphens, except in select options.
 - The resume text is now fitted to the 20k limit by dropping low-value detail first (prepared answers, which are sent separately; then project and older-job bullets). Before, it chopped the end off and lost projects and answers.
 - Verification: pytest 58/58 · ruff/pyright clean · tsc clean · vitest 66/66 · Playwright ai-pool 8/8 (the full-application fixture now checks Skill 1/2 and a 20-char Key skills box). An ad-hoc E2E imported the real profile against a "Python + Robot" listing: Skill 1-3 = Python, Robot Framework, Jenkins.
+
+---
+
+## [2026-09-30 15:20] rgbf51-20260930-001 — Familiarization + improvement analysis (READ-ONLY)
+
+**Mode:** BYPASS  **Status:** complete  **Duration:** ~25 min
+
+### Phase 0: Pre-execution
+- Atomisation: 1 request (analyse + list) → 1 atomic deliverable (the report)
+- ToT: skipped (score < 3 — read-only analysis, no architecture decision to make)
+- Temperature: BALANCED (research/analysis task, no code generation)
+
+### Phase 3: Implementation
+No code was written. Single deliverable: `docs/improvements-v2.md` — **93 numbered findings** (not the 70 first counted; recounted programmatically).
+
+### Verification run (evidence base for every claim in the report)
+- `.venv\Scripts\python.exe -m pytest tests -q` → **171 passed in 9.52s**
+- `client\node_modules\.bin\tsc.cmd --noEmit` → **clean**
+- `client\node_modules\.bin\vitest.cmd run` → **12 files, 117 tests passed**
+- `git` is **not on PATH** in this shell → no checkpoint taken (analysis only, nothing to roll back)
+
+### Confirmed dead code (grep-verified, not inferred)
+| Item | Only references found |
+|---|---|
+| `PreviewModal.tsx` + `previewOpen` | itself + `store.ts` declaration; no renderer, no setter call |
+| `crypto.ts` `deriveKey`/`newSalt` (PBKDF2, 310k iters) | `crypto.test.ts` only |
+| `vault.read_shard` | `tests/test_vault.py` only |
+| legacy `/analyze` route + `analyzeWithFallback` | wired in `background/index.ts`, no UI caller |
+| `chrome.permissions.request` | **zero occurrences** in `client/src` → saved remote server URLs can never work |
+
+### Report structure — 93 findings
+| Group | Count | Theme |
+|---|---|---|
+| A | 10 | Trust & honesty (mislabelled provenance, inferred gender, asserted legal status) |
+| B | 11 | Security (no auth on /fill, vault vs privacy docs, click-blocking banner) |
+| C | 15 | Accuracy (duplicated rule engines, date/file inputs, iframes, unescaped selector) |
+| D | 18 | Latency (profile re-sent per field, 15 clients, 180s vs 120s timeout, no partials) |
+| E | 21 | UX (session lost on popup close, no undo, no summary banner on default path) |
+| F | 18 | Test/CI/hygiene (**CI cannot fail** — 6 distinct breakages; zero tests for `fill.ts`) |
+| **Total** | **93** | A10 + B11 + C15 + D18 + U21 + F18 |
+
+### Phase 10: Summary
+Duration: ~25 min · Tasks: 1 · Blocked: 0 · Status: complete
+Files created: `docs/improvements-v2.md` · Files modified: `BD_changelog.md`, `BD_README.md`, `BD_todo.md`
+Grounded reviews: 0 (no code produced; every claim carries a `file:line` citation instead)
+---
+
+## [2026-09-30 16:05] rgbf51-20260930-002 — Form-filling improvement list (100 items), scoped + DB/WAL design
+
+**Mode:** BYPASS  **Status:** complete
+
+### Scope change (user instruction)
+Strictly form filling: field discovery, option/choice selection, single- and multi-select, MCQ answering.
+**Explicitly dropped:** CV/file upload, cover-letter generation. This removes `improvements-v2.md` C4 and
+the `_KIND_RULES["cover"]` work from consideration.
+
+### Deliverable
+`docs/form-filling-100.md` — **exactly 100 numbered improvements**, verified programmatically:
+A detection 11 · B options/selects 10 · C MCQ 8 · D custom widgets 8 · E frames/wizards 6 ·
+F fill execution & verification 10 · G UX 12 · H latency 10 · I security 9 ·
+J database/history/audit/WAL 10 · K observability/testing/ops 6.
+
+### ⚠️ Recorded decision override
+`BD_README.md` "Key Decisions" says **"Backend state: Stateless proxy, no DB"** (ToT-1 SYNTHESIS 91).
+The user asked for a proper database, history, logging and WAL, so that decision is **superseded**.
+Logged in `.opencode/memory/decisions.md`.
+
+**Chosen:** SQLite in WAL mode — stdlib `sqlite3` (Rule 9: no new dependency), local-first at
+`%LOCALAPPDATA%\RBG_Candidate\rbg.db`, every table user-scoped, schema kept portable to Postgres.
+Rationale: the stateless design genuinely cannot deliver undo, cross-restart answer memory, or an
+audit trail. WAL supplies concurrent readers during writes and crash safety, which the current
+DPAPI vault (Windows-only, no production read path, thread-per-request) does not.
+
+### Top structural findings behind the list
+1. **Nothing verifies a write.** `fill.ts` counts attempts and calls them "filled"; a React re-render
+   or a silent validator rejection still reports success. → F1/F9/F10 (the foundation).
+2. **Checkbox groups are answered wrong.** Each checkbox becomes its own `Yes`/`No` descriptor, so
+   "select all that apply" gets every box ticked. → B2/B3.
+3. **`<select multiple>` is skipped entirely** (`describe.ts` `controlType()` returns null). → B1.
+4. **Cardinality is not modelled anywhere** — the answer type is a single string, so multi-select and
+   multi-answer MCQ cannot be expressed. This is the structural change behind B1, B2, C3.
+5. **Frames and ARIA-only widgets are invisible** — no `all_frames`, no shadow-root walk, tag-name-only
+   detection. → A1/A2/A3.
+6. **The full profile is re-sent per AI field** (`tasks.py:742`). → H1/H2.
+
+### Phase 10: Summary
+Duration: ~20 min · Tasks: 1 · Blocked: 0 · Status: complete
+Files created: `docs/form-filling-100.md` · Files modified: `.opencode/memory/decisions.md`,
+`BD_changelog.md`, `BD_README.md`, `BD_todo.md`
+Code changed: **none** (design document only; nothing implemented)

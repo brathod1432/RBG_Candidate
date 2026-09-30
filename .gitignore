@@ -38,6 +38,15 @@ playwright-report/
 # Store package artefact (built on demand)
 *.zip
 
+# Agent-run strays and internal handoff state
+_backup_prepare_agent/
+_backup_pre_workers/
+_backup_strays/
+handoff.json
+testpath.js
+search_logs.py
+test-minimal-extension/
+
 # Personal candidate profiles (real names, phone numbers) - never commit
 profiles/
 
